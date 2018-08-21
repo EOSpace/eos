@@ -37,11 +37,11 @@
 		exit 1
 	fi
 
-	if [ "${DISK_AVAIL}" -lt "$DISK_MIN" ]; then
-		echo "You must have at least ${DISK_MIN}GB of available storage to install EOSIO."
-		echo "Exiting now."
-		exit 1
-	fi
+	# if [ "${DISK_AVAIL}" -lt "$DISK_MIN" ]; then
+	# 	echo "You must have at least ${DISK_MIN}GB of available storage to install EOSIO."
+	# 	echo "Exiting now."
+	# 	exit 1
+	# fi
 
 	printf "\\tChecking xcode-select installation\\n"
 	if ! XCODESELECT=$( command -v xcode-select)
