@@ -11,7 +11,7 @@
 namespace eosio
 {
 
-using namespace appbase;
+using kafka_plugin_impl_ptr = std::shared_ptr<class kafka_plugin_impl>;
 
 /**
  * Send topics to Kafka for:
@@ -28,7 +28,7 @@ using namespace appbase;
  *
  *   If cmake -DBUILD_KAFKA_PLUGIN=true  not specified then this plugin not compiled/included.
  */
-class kafka_plugin : public appbase::plugin<kafka_plugin>
+class kafka_plugin : public plugin<kafka_plugin>
 {
   public:
     APPBASE_PLUGIN_REQUIRES((chain_plugin))
@@ -36,14 +36,14 @@ class kafka_plugin : public appbase::plugin<kafka_plugin>
     kafka_plugin();
     virtual ~kafka_plugin();
 
-    virtual void set_program_options(options_description &, options_description &cfg) override;
+    virtual void set_program_options(options_description& cli, options_description& cfg) override;
 
-    void plugin_initialize(const variables_map &options);
+    void plugin_initialize(const variables_map& options);
     void plugin_startup();
     void plugin_shutdown();
 
   private:
-    std::unique_ptr<class kafka_plugin_impl> my;
+    kafka_plugin_impl_ptr my;
 };
 
 } // namespace eosio

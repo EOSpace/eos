@@ -11,7 +11,7 @@ if(BUILD_KAFKA_PLUGIN)
 
     target_include_directories( kafka_plugin
       PRIVATE ${RDKAFKA_INCLUDE_DIR}
-      PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+      PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "/usr/local/include")
 else()
   message("kafka_plugin not selected and will be omitted.")
 endif()
