@@ -3,8 +3,8 @@
  *  @copyright defined in eos/LICENSE.txt
  */
 #include <eosio/kafka_plugin/kafka_plugin.hpp>
-
-#include <librdkafka/rdkafkacpp.h>
+#include "cppkafka/producer.h"
+#include "cppkafka/configuration.h"
 
 namespace eosio {
    static appbase::abstract_plugin& _kafka_plugin = app().register_plugin<kafka_plugin>();
