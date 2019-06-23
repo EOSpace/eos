@@ -280,7 +280,7 @@ if [ ! -d "${RDKAFKA_DIR}" ]; then
         exit 1;
         fi
     fi
-    if ! git clone --depth 1 -b v0.11.6 https://github.com/boscore/librdkafka.git
+    if ! git clone --depth 1 -b v0.11.6 https://github.com/edenhill/librdkafka.git
     then
         printf "\\tUnable to clone librdkafka repo.\\n"
         printf "\\n\\tExiting now.\\n"
@@ -340,7 +340,7 @@ if [ ! -d "${CPPKAFKA_DIR}" ]; then
         exit 1;
         fi
     fi
-    if ! git clone --depth 1 -b 0.2 https://github.com/boscore/cppkafka.git
+    if ! git clone --depth 1 -b 0.2 https://github.com/mfontanini/cppkafka.git
     then
         printf "\\tUnable to clone cppkafka repo.\\n"
         printf "\\n\\tExiting now.\\n"
