@@ -8,7 +8,7 @@
 *.s
 *.dot
 *.abi.hpp
-*.cmake
+#*.cmake
 *.ninja
 \#*
 \.#*
