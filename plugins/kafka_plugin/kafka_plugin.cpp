@@ -4,6 +4,7 @@
 
 #include "kafka.hpp"
 #include "try_handle.hpp"
+#include <boost/algorithm/string.hpp>
 
 namespace eosio {
 
@@ -41,6 +42,11 @@ kafka_plugin::~kafka_plugin() {}
 void kafka_plugin::set_program_options(options_description&, options_description& cfg) {
     cfg.add_options()
             ("kafka-enable", bpo::value<bool>(), "Kafka enable")
+            ("kafka-enable-block", bpo::value<bool>()->default_value(false), "Enable send block messages.")
+            ("kafka-enable-transaction", bpo::value<bool>()->default_value(false), "Enable send transaction messages.")
+            ("kafka-enable-transaction-trace", bpo::value<bool>()->default_value(false), "Enable send transaction-trace messages.")
+            ("kafka-enable-action", bpo::value<bool>()->default_value(true), "Enable send action messages.")
+            ("kafka-filter-on", bpo::value<vector<string>>()->composing(), "Track actions and push it to kafka when it match receiver:action. In case action is not specified, all actions to specified account are tracked. e.g., eosio:voteproducer")
             ("kafka-broker-list", bpo::value<string>()->default_value("127.0.0.1:9092"), "Kafka initial broker list, formatted as comma separated pairs of host or host:port, e.g., host1:port1,host2:port2")
             ("kafka-block-topic", bpo::value<string>()->default_value("eos.blocks"), "Kafka topic for message `block`")
             ("kafka-transaction-topic", bpo::value<string>()->default_value("eos.txs"), "Kafka topic for message `transaction`")
@@ -113,16 +119,36 @@ void kafka_plugin::plugin_initialize(const variables_map& options) {
     if (options.at("kafka-fixed-partition").as<int>() >= 0) {
         kafka_->set_partition(options.at("kafka-fixed-partition").as<int>());
     }
+    bool only_irreversible_blocks = options.at("kafka-only-irreversible-blocks").as<bool>();
+    bool enable_blocks = options.at("kafka-enable-block").as<bool>();
+    bool enable_transaction = options.at("kafka-enable-transaction").as<bool>();
+    bool enable_transaction_trace = options.at("kafka-enable-transaction-trace").as<bool>();
+    bool enable_action = options.at("kafka-enable-action").as<bool>();
+    kafka_->set_enable(enable_blocks, enable_transaction, enable_transaction_trace, enable_action);
+
+    if (options.count("kafka-filter-on"))
+    {
+      auto fo = options.at("kafka-filter-on").as<vector<string>>();
+      for (auto &s : fo)
+      {
+        std::vector<std::string> v;
+        boost::split(v, s, boost::is_any_of(":"));
+        EOS_ASSERT(v.size() == 2, fc::invalid_arg_exception, "Invalid value ${s} for --kafka-filter-on", ("s", s));
+
+        kafka::FilterEntry fe{v[0], v[1]};
+        EOS_ASSERT(fe.account.value, fc::invalid_arg_exception, "Invalid value ${s} for --kafka-filter-on", ("s", s));
+        kafka_->add_filter(fe);
+      }
+    }
 
     unsigned start_block_num = options.at("kafka-start-block-num").as<unsigned>();
-    bool only_irreversible_blocks = options.at("kafka-only-irreversible-blocks").as<bool>();
 
     // add callback to chain_controller config
     chain_plugin_ = app().find_plugin<chain_plugin>();
     auto& chain = chain_plugin_->chain();
 
     block_conn_ = chain.accepted_block.connect([=](const chain::block_state_ptr& b) {
-        if (only_irreversible_blocks) return;
+        if (only_irreversible_blocks || not enable_blocks) return;
 
         if (not start_sync_) {
             if (b->block_num >= start_block_num) start_sync_ = true;
@@ -131,6 +157,8 @@ void kafka_plugin::plugin_initialize(const variables_map& options) {
         handle([=] { kafka_->push_block(b, false); }, "push block");
     });
     irreversible_block_conn_ = chain.irreversible_block.connect([=](const chain::block_state_ptr& b) {
+        if (not enable_blocks) return;
+
         if (not start_sync_) {
             if (b->block_num >= start_block_num) start_sync_ = true;
             else return;
@@ -138,7 +166,7 @@ void kafka_plugin::plugin_initialize(const variables_map& options) {
         handle([=] { kafka_->push_block(b, true); }, "push irreversible block");
     });
     transaction_conn_ = chain.applied_transaction.connect([=](const chain::transaction_trace_ptr& t) {
-        if (not start_sync_) return;
+        if (not start_sync_ || not enable_transaction) return;
         handle([=] { kafka_->push_transaction_trace(t); }, "push transaction");
     });
 }
