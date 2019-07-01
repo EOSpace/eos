@@ -59,6 +59,7 @@ void kafka_plugin::set_program_options(options_description&, options_description
             ("kafka-message-send-max-retries", bpo::value<unsigned>()->default_value(2), "Kafka how many times to retry sending a failing MessageSet")
             ("kafka-start-block-num", bpo::value<unsigned>()->default_value(1), "Kafka starts syncing from which block number")
             ("kafka-only-irreversible-blocks", bpo::value<bool>()->default_value(false), "Kafka only sync irreversible blocks")
+            ("kafka-only-irreversible-txs", bpo::value<bool>()->default_value(true), "Kafka only sync irreversible transactions")
             ("kafka-statistics-interval-ms", bpo::value<unsigned>()->default_value(0), "Kafka statistics emit interval, maximum is 86400000, 0 disables statistics")
             ("kafka-fixed-partition", bpo::value<int>()->default_value(-1), "Kafka specify fixed partition for all topics, -1 disables specify")
             ;
@@ -120,11 +121,12 @@ void kafka_plugin::plugin_initialize(const variables_map& options) {
         kafka_->set_partition(options.at("kafka-fixed-partition").as<int>());
     }
     bool only_irreversible_blocks = options.at("kafka-only-irreversible-blocks").as<bool>();
+    bool only_irreversible_txs = options.at("kafka-only-irreversible-txs").as<bool>();
     bool enable_blocks = options.at("kafka-enable-block").as<bool>();
     bool enable_transaction = options.at("kafka-enable-transaction").as<bool>();
     bool enable_transaction_trace = options.at("kafka-enable-transaction-trace").as<bool>();
     bool enable_action = options.at("kafka-enable-action").as<bool>();
-    kafka_->set_enable(enable_blocks, enable_transaction, enable_transaction_trace, enable_action);
+    kafka_->set_enable(enable_blocks, enable_transaction, enable_transaction_trace, enable_action, only_irreversible_txs);
 
     if (options.count("kafka-filter-on"))
     {
