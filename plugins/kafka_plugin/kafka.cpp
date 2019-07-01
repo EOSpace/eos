@@ -4,6 +4,7 @@
 #include <fc/io/json.hpp>
 
 #include "try_handle.hpp"
+#include "actions.hpp"
 
 namespace std {
 template<> struct hash<kafka::bytes> {
@@ -93,6 +94,8 @@ void kafka::stop() {
 
     producer_.reset();
 }
+
+asset get_user_bandwidth(name user);
 
 void kafka::push_block(const chain::block_state_ptr& block_state, bool irreversible) {
     if (not enable_block) return;
@@ -206,6 +209,26 @@ void kafka::push_action(const chain::action_trace& action_trace, uint64_t parent
     a->tx_id = checksum_bytes(action_trace.trx_id);
     if (not action_trace.console.empty()) a->console = action_trace.console;
 
+    try {
+        // get any extra data
+        if (a->account == a->receiver) { // only once
+            const auto& data = action_trace.act.data;
+
+            if (a->account == N(eosio)) {
+                switch (a->name) {
+                    case N(voteproducer): {
+                        const auto vp = fc::raw::unpack<voteproducer>(data);
+                        a->bandwidth = get_user_bandwidth(vp.voter);
+                        break;
+                    }
+                }
+            }
+        }
+    } catch (fc::exception& e) {
+        elog("parse action data failed, error: ${e}, action trace: ${a}", ("e", e.to_string())("a", action_trace));
+        throw;
+    }
+
     consume_action(a);
 
     for (auto& inline_trace: action_trace.inline_traces) {
@@ -235,6 +258,28 @@ void kafka::consume_action(ActionPtr action) {
     auto payload = fc::json::to_string(*action, fc::json::legacy_generator);
     Buffer buffer((char*)&action->global_seq, sizeof(action->global_seq));
     producer_->produce(MessageBuilder(action_topic_).partition(partition_).key(buffer).payload(payload));
+}
+
+asset get_user_bandwidth(name user) {
+    auto& chain = app().get_plugin<chain_plugin>();
+    auto ro_api = chain.get_read_only_api();
+    auto core_symbol = ro_api.extract_core_symbol();
+    asset total_res(0, core_symbol);
+
+    chain_apis::read_only::get_table_rows_params p;
+    p.json = true;
+    p.code = N(eosio);
+    p.scope = user.to_string();
+    p.limit = 10000;
+    p.table = "delband";
+    auto tbls = ro_api.get_table_rows(p);
+    for (auto row : tbls.rows ) {
+        auto net = row["net_weight"].as<asset>();
+        auto cpu = row["cpu_weight"].as<asset>();
+        total_res += net + cpu;
+    }
+
+    return total_res;
 }
 
 }
