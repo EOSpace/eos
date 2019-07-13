@@ -62,8 +62,10 @@ void kafka_plugin::set_program_options(options_description&, options_description
             ("kafka-only-irreversible-txs", bpo::value<bool>()->default_value(true), "Kafka only sync irreversible transactions")
             ("kafka-statistics-interval-ms", bpo::value<unsigned>()->default_value(0), "Kafka statistics emit interval, maximum is 86400000, 0 disables statistics")
             ("kafka-fixed-partition", bpo::value<int>()->default_value(-1), "Kafka specify fixed partition for all topics, -1 disables specify")
+            ("kafka-sasl-username", bpo::value<string>(), "SASL username")
+            ("kafka-sasl-password", bpo::value<string>(), "SASL password")
             ;
-    // TODO: security options
+            // security options
 }
 
 void kafka_plugin::plugin_initialize(const variables_map& options) {
@@ -100,7 +102,12 @@ void kafka_plugin::plugin_initialize(const variables_map& options) {
             {"compression.codec", compressionCodec},
             {"request.required.acks", options.at("kafka-request-required-acks").as<int>()},
             {"message.send.max.retries", options.at("kafka-message-send-max-retries").as<unsigned>()},
-            {"socket.keepalive.enable", true}
+            {"socket.keepalive.enable", true},
+            {"security.protocol", "sasl_plaintext"},
+            {"sasl.mechanisms", "PLAIN"},
+            {"sasl.username", options.at("kafka-sasl-username").as<string>()},
+            {"sasl.password", options.at("kafka-sasl-password").as<string>()},
+            {"api.version.request", true}
     };
     auto stats_interval = options.at("kafka-statistics-interval-ms").as<unsigned>();
     if (stats_interval > 0) {
