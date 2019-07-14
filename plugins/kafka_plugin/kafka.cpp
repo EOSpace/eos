@@ -148,6 +148,9 @@ std::pair<uint32_t, uint32_t> kafka::push_transaction(const chain::transaction_r
 }
 
 void kafka::push_transaction_trace(const chain::transaction_trace_ptr& tx_trace) {
+    // bypass failed transaction
+    if (not tx_trace->receipt) return;
+
     // bypass `onblock` transaction
     if (not tx_trace->action_traces.empty()) {
         const auto& first = tx_trace->action_traces.front().act;
