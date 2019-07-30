@@ -40,7 +40,7 @@ void state_plugin::plugin_initialize(const variables_map& options) {
     // get option
     std::string fo = options.at( "state-snapshot-file" ).as<std::string>();
     ilog("Opening file ${u}", ("u", fo));
-    state_file.open(fo, std::ios_base::app);
+    state_file.open(fo, std::ios_base::out);
 
     ilog("Initialize state plugin");
     configured_ = true;
@@ -48,18 +48,28 @@ void state_plugin::plugin_initialize(const variables_map& options) {
 
     chain_plugin_ = app().find_plugin<chain_plugin>();
     auto& chain = chain_plugin_->chain();
+    auto ro_api = chain_plugin_->get_read_only_api();
 
     irreversible_block_conn_ = chain.irreversible_block.connect([=](const chain::block_state_ptr& b) {
         if (b->block_num == start_block_num) {
-            chainbase::database& db = const_cast<chainbase::database&>( chain_plugin_->chain().db() );
+            auto& _chain = chain_plugin_->chain();
+            chainbase::database& db = const_cast<chainbase::database&>( _chain.db() );
             const auto& account_idx = db.get_index<eosio::chain::account_index>().indices();
+            chain_apis::read_only::get_account_params p;
+
             for( const auto& u : account_idx ) {
                 ilog("query account on chain ${u}", ("u", u));
-                ilog("Created ${u}", ("u", u.name));
+                p.account_name = u.name;
+                auto res = ro_api.get_account(p);
+                ilog("get_account: ${r}", ("r", res));
+
                 boost::mutex::scoped_lock lock(flock);
-                state_file << u.name.to_string() << std::endl;
+                auto payload = fc::json::to_string(res, fc::json::legacy_generator);
+                state_file << payload << std::endl;
                 state_file.flush();
             }
+
+            appbase::app().quit();
         }
     });
 }
